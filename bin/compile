@@ -63,6 +63,10 @@ for BUILDPACK in $(cat $1/.buildpacks); do
       if [ -x $dir/bin/release ]; then
         $dir/bin/release $1 > $1/last_pack_release.out
       fi
+    else
+      echo " !     Application is not compatible with the buildpack."
+      echo "       Check buildpack documentation for more information:"
+      echo "       https://doc.scalingo.com/platform/deployment/buildpacks/intro"
     fi
   fi
 done
