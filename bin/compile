@@ -19,6 +19,10 @@ for BUILDPACK in $(cat $1/.buildpacks); do
   url=${BUILDPACK%#*}
   branch=${BUILDPACK#*#}
 
+  # Remove additional \r if file created with Windows
+  url=$(echo $url | tr -d '\r')
+  branch=$(echo $branch | tr -d '\r')
+
   if [ "$branch" == "$url" ]; then
     branch=""
   fi
@@ -35,12 +39,12 @@ for BUILDPACK in $(cat $1/.buildpacks); do
         echo "=====> Detected git submodules. Initializing..."
         (cd $dir && git submodule update --init --recursive)
       fi
+
+      if [ "$branch" != "" ]; then
+        (cd $dir && git checkout $branch >/dev/null 2>&1)
+      fi
     fi
     cd $dir
-
-    if [ "$branch" != "" ]; then
-      git checkout $branch >/dev/null 2>&1
-    fi
 
     # we'll get errors later if these are needed and don't exist
     chmod -f +x $dir/bin/{detect,compile,release} || true
