@@ -41,6 +41,7 @@ for BUILDPACK in $(cat $1/.buildpacks); do
       fi
 
       if [ "$branch" != "" ]; then
+        echo "=====> Using branch: $branch"
         (cd $dir && git checkout $branch >/dev/null 2>&1)
       fi
     fi
