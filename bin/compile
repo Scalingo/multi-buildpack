@@ -2,6 +2,8 @@
 
 set -e
 
+[ "$BUILDPACK_DEBUG" = "true" ] && set -x
+
 function indent() {
   c='s/^/       /'
   case $(uname) in
