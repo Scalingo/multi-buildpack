@@ -1,0 +1,8 @@
+version = "1.0.0"
+owner = "etienne@scalingo.com"
+team = "IST"
+description = "Multiple buildpacks handling for deploying apps on Scalingo"
+languages = ["shell"]
+destination_server = []
+flags = ["buildpack"]
+dependencies = []
