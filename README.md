@@ -1,14 +1,10 @@
 # Multi-buildpack
 
-Use multiple buildpacks on your app
+Use multiple buildpacks on your app.
 
 ## Usage
 
-    $ scalingo env-set BUILDPACK_URL=https://github.com/Scalingo/multi-buildpack.git
-
-    $ cat .buildpacks
-    https://github.com/Scalingo/ffmpeg-buildpack.git
-    https://github.com/Scalingo/go-buildpack.git
+Scalingo automatically detects an application to be multi-buildpack as long as there is a `.buildpacks` file at its root. For further details on using multiple buildpacks, please refer to [our documentation](https://doc.scalingo.com/platform/deployment/buildpacks/multi).
 
 ## License
 
