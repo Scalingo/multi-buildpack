@@ -1,84 +1,112 @@
 #!/usr/bin/env bash
+# usage: bin/compile <build_dir> <cache_dir> <env_dir>
 
-set -e
+source "$( readlink -f "$( dirname "${0}" )/../vendor/cmnlib.sh" )"
 
-[ "$BUILDPACK_DEBUG" = "true" ] && set -x
+# -----------------------------------------------------------------------------
 
-function indent() {
-  c='s/^/       /'
-  case $(uname) in
-    Darwin) sed -l "$c";;
-    *)      sed -u "$c";;
-  esac
+# Global regex used to parse the `.buildpacks` file.
+# Putting it as a global allows it to be compiled once.
+#
+# It's made of:
+#
+# ^[[:space:]]*
+#   Ignores space-like chars at the beginning of the line.
+#
+# ([^#[:space:]][^#]*)
+#   Captures the URL.
+#   Captures anything that doesn't start with '#' or a space-like chars until a
+#   potential '#' (excluded).
+#
+# (#(.*))?
+#   Captures an optional branch name.
+#   Group 2 is '#branch_name'
+#   Group 3 is 'branch_name'
+#
+# [[:space:]]*$
+#   Ignores space-like chars at the end of the line.
+#
+readonly PARSE_LINE_REGEX='^[[:space:]]*([^#[:space:]][^#]*)(#(.*))?[[:space:]]*$'
+
+multi::url::parse() {
+#
+# Parse the given line and retrieve a URL and a branch name, if given.
+# This function is designed to parse the lines of the `.buildpacks` file.
+#
+# Usage:
+#   ```bash
+#   while IFS= read -r line; do
+#       multi::url::parse "${line}" url branch
+#       # do something with $url and $branch
+#       # echo "URL=${url} BRANCH=${branch}"
+#   done < "${buildpacks_file}"
+#   ```
+#
+
+	local line="${1}"
+
+	# Makes _url a reference to the variable named by $2's value:
+	local -n _url="${2}"
+	# Makes _branch a reference to the variable named by $3's value:
+	local -n _branch="${3}"
+
+	# If the result of the Bash expansion is empty,
+	# then the line contains only space-like chars.
+	# We can ignore it.
+	[[ -z "${line//[[:space:]]/}" ]] && return 1
+
+	# If the line matches the regex, then it's a comment.
+	# We can ignore it.
+	[[ "${line}" =~ ^[[:space:]]*# ]] && return 1
+
+	# Extracts the URL and the branch name out of the line, using the regex:
+	if [[ "${line}" =~ $PARSE_LINE_REGEX ]]; then
+		_url="${BASH_REMATCH[1]}"
+		_branch="${BASH_REMATCH[3]}"
+
+		return 0
+	fi
+
+	return 1
 }
+
+# -----------------------------------------------------------------------------
+
+cmn::main::start "${0}" "${1}" "${2}" "${3}"
+
+# -----------------------------------------------------------------------------
+
+readonly buildpacks_file="${build_dir:?}/.buildpacks"
 
 unset GIT_DIR
 
-for BUILDPACK in $(cat $1/.buildpacks); do
-  dir=$(mktemp -t buildpackXXXXX)
-  rm -rf $dir
 
-  url=${BUILDPACK%#*}
-  branch=${BUILDPACK#*#}
+while IFS= read -r line; do
+	url=""
+	branch=""
 
-  # Remove additional \r if file created with Windows
-  url=$(echo $url | tr -d '\r')
-  branch=$(echo $branch | tr -d '\r')
+	# Skip the line if it is empty, commented out, or if it doesn't match what
+	# we are waiting for:
+	multi::url::parse "${line}" url branch || continue
 
-  if [ "$branch" == "$url" ]; then
-    branch=""
-  fi
+	cmn::output::debug <<- EOM
+		Considering:
+		  url:    ${url}
+		  branch: ${branch:-"<none>"}
+	EOM
 
-  if [ "$url" != "" ]; then
-    echo "=====> Downloading Buildpack: $url"
+	cmn::step::start "Processing buildpack: ${url}${branch:+"#$branch"}"
 
-    if [[ "$url" =~ \.tgz$ || "$url" =~ \.tar\.gz$ ]]; then
-      mkdir -p "$dir"
-      curl -s "$url" | tar xvz -C "$dir" >/dev/null 2>&1
-    else
-      git clone $url $dir >/dev/null 2>&1
-      if [ -f "$dir/.gitmodules" ]; then
-        echo "=====> Detected git submodules. Initializing..."
-        (cd $dir && git submodule update --init --recursive)
-      fi
+	cmn::bp::run "${build_dir:?}" "${cache_dir:?}" "${env_dir:?}" \
+		"${tmp_dir:?}" "${url}" "${branch}"
 
-      if [ "$branch" != "" ]; then
-        echo "=====> Using branch: $branch"
-        (cd $dir && git checkout $branch >/dev/null 2>&1)
-      fi
-    fi
-    cd $dir
+done < "${buildpacks_file}"
 
-    # we'll get errors later if these are needed and don't exist
-    chmod -f +x $dir/bin/{detect,compile,release} || true
 
-    framework=$($dir/bin/detect $1)
-
-    if [ $? == 0 ]; then
-      echo "=====> Detected Framework: $framework"
-      $dir/bin/compile $1 $2 $3
-
-      if [ $? != 0 ]; then
-        exit 1
-      fi
-
-      # check if the buildpack left behind an environment for subsequent ones
-      if [ -e $dir/export ]; then
-        source $dir/export
-      fi
-
-      if [ -x $dir/bin/release ]; then
-        $dir/bin/release $1 > $1/last_pack_release.out
-      fi
-    else
-      echo " !     Application is not compatible with the buildpack."
-      echo "       Check buildpack documentation for more information:"
-      echo "       https://doc.scalingo.com/platform/deployment/buildpacks/intro"
-    fi
-  fi
-done
-
-if [ -e $1/last_pack_release.out ]; then
-  echo "Using release configuration from last framework ($framework)."
+if [[ -e "${build_dir:?}/last_pack_release.out" ]]; then
+	cmn::output::info <<-EOM
+		Using release configuration from the last buildpack.
+	EOM
 fi
 
+cmn::main::finish
