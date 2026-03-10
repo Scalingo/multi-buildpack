@@ -26,7 +26,6 @@ source "$( readlink -f "$( dirname "${0}" )/../vendor/cmnlib.sh" )"
 # [[:space:]]*$
 #   Ignores space-like chars at the end of the line.
 #
-
 readonly PARSE_LINE_REGEX='^[[:space:]]*([^#[:space:]][^#]*)(#(.*))?[[:space:]]*$'
 
 multi::url::parse() {
@@ -54,17 +53,11 @@ multi::url::parse() {
 	# If the result of the Bash expansion is empty,
 	# then the line contains only space-like chars.
 	# We can ignore it.
-	[[ -z "${line//[[:space:]]/}" ]] \
-		&& {
-			return 1
-		}
+	[[ -z "${line//[[:space:]]/}" ]] && return 1
 
 	# If the line matches the regex, then it's a comment.
 	# We can ignore it.
-	[[ "${line}" =~ ^[[:space:]]*# ]] \
-		&& {
-			return 1
-		}
+	[[ "${line}" =~ ^[[:space:]]*# ]] && return 1
 
 	# Extracts the URL and the branch name out of the line, using the regex:
 	if [[ "${line}" =~ $PARSE_LINE_REGEX ]]; then
@@ -83,10 +76,10 @@ cmn::main::start "${0}" "${1}" "${2}" "${3}"
 
 # -----------------------------------------------------------------------------
 
-#FIXME:
-# unset GIT_DIR
-
 readonly buildpacks_file="${build_dir:?}/.buildpacks"
+
+unset GIT_DIR
+
 
 while IFS= read -r line; do
 	url=""
@@ -112,7 +105,7 @@ done < "${buildpacks_file}"
 
 if [[ -e "${build_dir:?}/last_pack_release.out" ]]; then
 	cmn::output::info <<-EOM
-		Using release configuration from last buildpack (${technology}).
+		Using release configuration from the last buildpack.
 	EOM
 fi
 
