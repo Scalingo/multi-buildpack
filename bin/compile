@@ -51,7 +51,7 @@ for BUILDPACK in $(cat $1/.buildpacks); do
       if [[ ! "$url" =~ \.tgz$ && ! "$url" =~ \.tar\.gz$ ]]; then
         archive_url="${url%/}/archive/refs/heads/${branch:-master}.tar.gz"
       fi
-      curl -sL "$archive_url" | tar xvz -C "$dir" >/dev/null 2>&1
+      curl -sL "$archive_url" | tar xvz --strip-components=1 -C "$dir" >/dev/null 2>&1
     fi
     cd $dir
 

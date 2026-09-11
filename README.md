@@ -10,6 +10,8 @@ Scalingo automatically detects an application to be multi-buildpack as long as t
 
 Buildpack URLs ending in `.git` are cloned as Git repositories. URLs ending in `.tgz` or `.tar.gz` are downloaded directly as archives.
 
+When an archive is extracted, its top-level directory is stripped so that the buildpack files are placed directly in the buildpack root.
+
 Other URLs are treated as GitHub repository URLs and downloaded as the `master` branch archive. For example:
 
 ```
