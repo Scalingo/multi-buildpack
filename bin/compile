@@ -4,7 +4,7 @@ set -e
 
 [ "$BUILDPACK_DEBUG" = "true" ] && set -x
 
-export GIT_CLONE_HTTP_VERSION="${GIT_CLONE_HTTP_VERSION:-HTTP/1.1}"
+export GIT_CLONE_HTTP_VERSION="${GIT_CLONE_HTTP_VERSION:-HTTP/2}"
 
 function indent() {
   c='s/^/       /'
@@ -34,11 +34,8 @@ for BUILDPACK in $(cat $1/.buildpacks); do
   if [ "$url" != "" ]; then
     echo "=====> Downloading Buildpack: $url"
 
-    if [[ "$url" =~ \.tgz$ || "$url" =~ \.tar\.gz$ ]]; then
-      mkdir -p "$dir"
-      curl -s "$url" | tar xvz -C "$dir" >/dev/null 2>&1
-    else
-      git clone -c http.version="${GIT_CLONE_HTTP_VERSION}" $url $dir >/dev/null 2>&1
+    if [[ "$url" =~ \.git$ ]]; then
+      git clone --config "http.version=${GIT_CLONE_HTTP_VERSION}" "$url" "$dir" >/dev/null 2>&1
       if [ -f "$dir/.gitmodules" ]; then
         echo "=====> Detected git submodules. Initializing..."
         (cd $dir && git submodule update --init --recursive)
@@ -48,6 +45,13 @@ for BUILDPACK in $(cat $1/.buildpacks); do
         echo "=====> Using branch: $branch"
         (cd $dir && git checkout $branch >/dev/null 2>&1)
       fi
+    else
+      mkdir --parents "$dir"
+      archive_url="$url"
+      if [[ ! "$url" =~ \.tgz$ && ! "$url" =~ \.tar\.gz$ ]]; then
+        archive_url="${url%/}/archive/refs/heads/${branch:-master}.tar.gz"
+      fi
+      curl --silent --location "$archive_url" | tar --extract --verbose --gzip --strip-components=1 --directory "$dir" >/dev/null 2>&1
     fi
     cd $dir
 
@@ -83,4 +87,3 @@ done
 if [ -e $1/last_pack_release.out ]; then
   echo "Using release configuration from last framework ($framework)."
 fi
-
