@@ -50,6 +50,13 @@ for BUILDPACK in $(cat $1/.buildpacks); do
       archive_url="$url"
       if [[ ! "$url" =~ \.tgz$ && ! "$url" =~ \.tar\.gz$ ]]; then
         archive_url="${url%/}/archive/refs/heads/${branch:-master}.tar.gz"
+        if [[ -n "$branch" ]]; then
+          branch_status=$(curl --silent --location --head --output /dev/null --write-out "%{http_code}" "$archive_url" || true)
+          # We only consider 200 as valid for this request:
+          if [[ "${branch_status}" != "200" ]]; then
+            archive_url="${url%/}/archive/refs/tags/${branch}.tar.gz"
+          fi
+        fi
       fi
       curl --silent --location "$archive_url" | tar --extract --verbose --gzip --strip-components=1 --directory "$dir" >/dev/null 2>&1
     fi

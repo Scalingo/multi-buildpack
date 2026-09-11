@@ -30,6 +30,8 @@ To download another branch, append `#branch` to the repository URL:
 https://github.com/Scalingo/ruby-buildpack#main
 ```
 
+Custom refs are checked as branches first. If the branch archive does not return `200` after redirects, the ref is downloaded as a tag instead.
+
 ## License
 
 © David Dollar [https://github.com/ddollar](https://github.com/ddollar/heroku-buildpack-multi)
