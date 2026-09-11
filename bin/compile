@@ -35,7 +35,7 @@ for BUILDPACK in $(cat $1/.buildpacks); do
     echo "=====> Downloading Buildpack: $url"
 
     if [[ "$url" =~ \.git$ ]]; then
-      git clone -c http.version="${GIT_CLONE_HTTP_VERSION}" $url $dir >/dev/null 2>&1
+      git clone --config "http.version=${GIT_CLONE_HTTP_VERSION}" "$url" "$dir" >/dev/null 2>&1
       if [ -f "$dir/.gitmodules" ]; then
         echo "=====> Detected git submodules. Initializing..."
         (cd $dir && git submodule update --init --recursive)
@@ -46,12 +46,12 @@ for BUILDPACK in $(cat $1/.buildpacks); do
         (cd $dir && git checkout $branch >/dev/null 2>&1)
       fi
     else
-      mkdir -p "$dir"
+      mkdir --parents "$dir"
       archive_url="$url"
       if [[ ! "$url" =~ \.tgz$ && ! "$url" =~ \.tar\.gz$ ]]; then
         archive_url="${url%/}/archive/refs/heads/${branch:-master}.tar.gz"
       fi
-      curl -sL "$archive_url" | tar xvz --strip-components=1 -C "$dir" >/dev/null 2>&1
+      curl --silent --location "$archive_url" | tar --extract --verbose --gzip --strip-components=1 --directory "$dir" >/dev/null 2>&1
     fi
     cd $dir
 
